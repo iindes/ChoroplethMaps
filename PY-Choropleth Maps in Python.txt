@@ -1,0 +1,235 @@
+# ChrplthMp01.ipynb
+GeoJSON with feature.id
+
+
+# ChrplthMp02.ipynb
+import pandas as pd
+df = pd.read_csv("https://raw.githubusercontent.com/plotly/datasets/master/fips-unemp-16.csv",
+                   dtype={"fips": str})
+df.head()
+
+
+# Choropleth map using GeoJSON
+##  ChrplthMp03.ipynb
+
+from urllib.request import urlopen
+import json
+with urlopen('https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json') as response:
+    counties = json.load(response)
+
+import pandas as pd
+df = pd.read_csv("https://raw.githubusercontent.com/plotly/datasets/master/fips-unemp-16.csv",
+                   dtype={"fips": str})
+
+import plotly.express as px
+
+fig = px.choropleth(df, geojson=counties, locations='fips', color='unemp',
+                           color_continuous_scale="Viridis",
+                           range_color=(0, 12),
+                           scope="usa",
+                           labels={'unemp':'unemployment rate'}
+                          )
+fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+fig.show()
+
+
+# Indexing by GeoJSON Properties
+##  ChrplthMp04.ipynb
+import plotly.express as px
+
+df = px.data.election()
+geojson = px.data.election_geojson()
+
+print(df["district"][2])
+print(geojson["features"][0]["properties"])
+
+##  ChrplthMp05.ipynb 
+
+import plotly.express as px
+
+df = px.data.election()
+geojson = px.data.election_geojson()
+
+fig = px.choropleth(df, geojson=geojson, color="Bergeron",
+                    locations="district", featureidkey="properties.district",
+                    projection="mercator"
+                   )
+fig.update_geos(fitbounds="locations", visible=False)
+fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+fig.show()
+
+# Choropleth maps in Dash
+##  ChrplthMp06.ipynb 
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output
+import plotly.express as px
+
+df = px.data.election()
+geojson = px.data.election_geojson()
+candidates = df.winner.unique()
+
+app = dash.Dash(__name__)
+
+app.layout = html.Div([
+    html.P("Candidate:"),
+    dcc.RadioItems(
+        id='candidate', 
+        options=[{'value': x, 'label': x} 
+                 for x in candidates],
+        value=candidates[0],
+        labelStyle={'display': 'inline-block'}
+    ),
+    dcc.Graph(id="choropleth"),
+])
+
+@app.callback(
+    Output("choropleth", "figure"), 
+    [Input("candidate", "value")])
+def display_choropleth(candidate):
+    fig = px.choropleth(
+        df, geojson=geojson, color=candidate,
+        locations="district", featureidkey="properties.district",
+        projection="mercator", range_color=[0, 6500])
+    fig.update_geos(fitbounds="locations", visible=False)
+    fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+
+    return fig
+
+app.run_server(debug=True)
+
+
+# Discrete Colors
+##  ChrplthMp07.ipynb 
+import plotly.express as px
+
+df = px.data.election()
+geojson = px.data.election_geojson()
+
+fig = px.choropleth(df, geojson=geojson, color="winner",
+                    locations="district", featureidkey="properties.district",
+                    projection="mercator", hover_data=["Bergeron", "Coderre", "Joly"]
+                   )
+fig.update_geos(fitbounds="locations", visible=False)
+fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+fig.show()
+
+
+# Using Built-in Country and State Geometries
+##  ChrplthMp08.ipynb 
+import plotly.express as px
+
+df = px.data.gapminder().query("year==2007")
+fig = px.choropleth(df, locations="iso_alpha",
+                    color="lifeExp", # lifeExp is a column of gapminder
+                    hover_name="country", # column to add to hover information
+                    color_continuous_scale=px.colors.sequential.Plasma)
+fig.show()
+
+
+## To use the USA States geometry, set locationmode='USA-states' and provide locations as two-letter state abbreviations:
+##  ChrplthMp09.ipynb 
+import plotly.express as px
+
+fig = px.choropleth(locations=["CA", "TX", "NY"], locationmode="USA-states", color=[1,2,3], scope="usa")
+fig.show()
+
+
+# World Choropleth Map
+##  ChrplthMp10.ipynb 
+import plotly.graph_objects as go
+import pandas as pd
+
+df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/2014_world_gdp_with_codes.csv')
+
+fig = go.Figure(data=go.Choropleth(
+    locations = df['CODE'],
+    z = df['GDP (BILLIONS)'],
+    text = df['COUNTRY'],
+    colorscale = 'Blues',
+    autocolorscale=False,
+    reversescale=True,
+    marker_line_color='darkgray',
+    marker_line_width=0.5,
+    colorbar_tickprefix = '$',
+    colorbar_title = 'GDP<br>Billions US$',
+))
+
+fig.update_layout(
+    title_text='2014 Global GDP',
+    geo=dict(
+        showframe=False,
+        showcoastlines=False,
+        projection_type='equirectangular'
+    ),
+    annotations = [dict(
+        x=0.55,
+        y=0.1,
+        xref='paper',
+        yref='paper',
+        text='Source: <a href="https://www.cia.gov/library/publications/the-world-factbook/fields/2195.html">\
+            CIA World Factbook</a>',
+        showarrow = False
+    )]
+)
+
+fig.show()
+
+# County Choropleth Figure Factory
+##  ChrplthMp11.ipynb 
+
+import plotly.figure_factory as ff
+
+import numpy as np
+import pandas as pd
+
+df_sample = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/laucnty16.csv')
+df_sample['State FIPS Code'] = df_sample['State FIPS Code'].apply(lambda x: str(x).zfill(2))
+df_sample['County FIPS Code'] = df_sample['County FIPS Code'].apply(lambda x: str(x).zfill(3))
+df_sample['FIPS'] = df_sample['State FIPS Code'] + df_sample['County FIPS Code']
+
+colorscale = ["#f7fbff", "#ebf3fb", "#deebf7", "#d2e3f3", "#c6dbef", "#b3d2e9", "#9ecae1",
+    "#85bcdb", "#6baed6", "#57a0ce", "#4292c6", "#3082be", "#2171b5", "#1361a9",
+    "#08519c", "#0b4083", "#08306b"
+]
+endpts = list(np.linspace(1, 12, len(colorscale) - 1))
+fips = df_sample['FIPS'].tolist()
+values = df_sample['Unemployment Rate (%)'].tolist()
+
+
+fig = ff.create_choropleth(
+    fips=fips, values=values, scope=['usa'],
+    binning_endpoints=endpts, colorscale=colorscale,
+    show_state_data=False,
+    show_hover=True,
+    asp = 2.9,
+    title_text = 'USA by Unemployment %',
+    legend_title = '% unemployed'
+)
+fig.layout.template = None
+fig.show()
+
+
+# Color scale for Contour Plot with Graph Objects
+
+import plotly.graph_objects as go
+
+fig = go.Figure()
+
+fig.add_trace(go.Contour(
+    z=[[10, 10.625, 12.5, 15.625, 20],
+       [5.625, 6.25, 8.125, 11.25, 15.625],
+       [2.5, 3.125, 5., 8.125, 12.5],
+       [0.625, 1.25, 3.125, 6.25, 10.625],
+       [0, 0.625, 2.5, 5.625, 10]],
+    colorscale="Cividis",
+))
+
+fig.show()
+
+
+
+#
+https://github.com/marcosci	geo | r | viz | data
+https://github.com/henewsuh
